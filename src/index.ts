@@ -28,7 +28,7 @@ function createMcpServer(): McpServer {
   registerSessionTools(server, store);
   registerGithubTools(server);
   registerReviewTools(server);
-  registerCodeCommitTools(server, store);
+  registerCodeCommitTools(server);
   registerDiscordTools(server);
   return server;
 }

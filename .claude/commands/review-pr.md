@@ -27,6 +27,20 @@ Review PR $ARGUMENTS
 
 ---
 
+## Step 0.5 — AWS CREDENTIALS (CodeCommit เท่านั้น)
+
+ถ้า provider = **codecommit**: ขอ AWS credentials จากผู้ใช้ก่อนดำเนินการต่อ
+
+พิมพ์ข้อความนี้ให้ผู้ใช้:
+> กรุณาแนบ AWS credentials สำหรับ session นี้ (จาก AWS Access Portal หรือ Identity Center):
+> - `AWS_ACCESS_KEY_ID` (ASIA... หรือ AKIA...)
+> - `AWS_SECRET_ACCESS_KEY`
+> - `AWS_SESSION_TOKEN` (ถ้ามี — สำหรับ temporary credentials)
+
+เก็บค่าที่ได้ไว้เป็น `$AWS_KEY`, `$AWS_SECRET`, `$AWS_TOKEN` สำหรับใช้ใน Step 1
+
+---
+
 ## Step 1 — FETCH
 
 ถ้า provider = **github**: เรียก tools ผ่าน mawin-agent connector:
@@ -34,10 +48,10 @@ Review PR $ARGUMENTS
 2. `get_diff` (owner, repo, pr_number) → unified diff
 3. `review_code` (diff) → automated static analysis
 
-ถ้า provider = **codecommit**: เรียก tools ผ่าน mawin-agent connector:
-1. `cc_get_pull_request` (pullRequestId) → title, description, branch, status, commits
-2. `cc_get_diff` (repositoryName, pullRequestId) → unified diff (สร้างจาก blob comparison)
-3. `review_code` (diff) → automated static analysis (ใช้ tool เดิมได้เลย)
+ถ้า provider = **codecommit**: เรียก tools ผ่าน mawin-agent connector พร้อมส่ง credentials ทุก call:
+1. `cc_get_pull_request` (pullRequestId, aws_access_key_id=$AWS_KEY, aws_secret_access_key=$AWS_SECRET, aws_session_token=$AWS_TOKEN)
+2. `cc_get_diff` (repositoryName, pullRequestId, aws_access_key_id=$AWS_KEY, aws_secret_access_key=$AWS_SECRET, aws_session_token=$AWS_TOKEN)
+3. `review_code` (diff) → automated static analysis (ไม่ต้องส่ง credentials)
 
 ถ้า tool ใดล้มเหลว ให้หยุดและรายงาน error ทันที อย่าเดาผลลัพธ์
 
