@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: code-review-mcp
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3000"
+      - key: GITHUB_TOKEN
+        sync: false   # Set manually in Render dashboard
