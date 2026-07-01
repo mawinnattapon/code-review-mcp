@@ -18,7 +18,7 @@ interface ParsedCommand {
 
 // @bot review <repo> <id> [--provider github|codecommit]
 function parseCommand(content: string, botId: string): ParsedCommand | null {
-  const text = content.replace(`<@${botId}>`, '').trim();
+  const text = content.replace(new RegExp(`<@!?${botId}>`), '').trim();
   const match = text.match(
     /^review\s+(\S+)\s+(\d+)(?:\s+--provider\s+(github|codecommit))?/i,
   );
