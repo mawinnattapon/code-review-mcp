@@ -201,16 +201,23 @@ Rules:
 
 ## Step 7 — DISCORD NOTIFICATION
 
-หลังเขียน `reviews/PR-<pr-number>.json` เสร็จแล้ว ให้เรียก tool `send_to_discord` ผ่าน mawin-agent:
+หลังเขียนไฟล์ทั้งสองเสร็จแล้ว ให้อ่าน markdown กลับมาแล้วเรียก `send_to_discord` ผ่าน mawin-agent:
 
 ```
 send_to_discord(
-  review_json = <JSON string ที่เขียนลง reviews/PR-<pr-number>.json>,
-  pr_title    = <PR title จาก Step 1>
+  review_json     = <JSON string ที่เขียนลง reviews/PR-<pr-number>.json>,
+  review_markdown = <เนื้อหาของไฟล์ reviews/PR-<pr-number>.md ทั้งหมด>,
+  pr_title        = <PR title จาก Step 1>
 )
 ```
 
-ถ้า tool ตอบ error เรื่อง webhook URL ไม่มี ให้ข้ามและบันทึกว่า "Discord: SKIPPED (DISCORD_WEBHOOK_URL not set)"
+Discord จะได้รับ:
+- บรรทัดที่ 1: `📋 PR #<id>: <title> — <emoji> <DECISION>`
+- บรรทัดที่ 2: `🔴 X crit · 🟠 X high · 🟡 X med · 🟢 X low`
+- summary ภาษาไทย
+- `📎 Full review → PR-<id>.md` พร้อม file attachment
+
+ถ้า tool ตอบ error ให้บันทึกว่า "Discord: SKIPPED" และดำเนินการต่อ
 
 ---
 
