@@ -201,21 +201,21 @@ Rules:
 
 ## Step 7 — DISCORD NOTIFICATION
 
-หลังเขียนไฟล์ทั้งสองเสร็จแล้ว ให้อ่าน markdown กลับมาแล้วเรียก `send_to_discord` ผ่าน mawin-agent:
+ทำตามลำดับนี้:
+
+**7a.** อ่านไฟล์ `reviews/PR-<pr-number>.md` ด้วย Read tool เก็บเนื้อหาไว้เป็น `$MD_CONTENT`
+
+**7b.** อ่านไฟล์ `reviews/PR-<pr-number>.json` ด้วย Read tool เก็บเนื้อหาไว้เป็น `$JSON_CONTENT`
+
+**7c.** เรียก `send_to_discord` ผ่าน mawin-agent:
 
 ```
 send_to_discord(
-  review_json     = <JSON string ที่เขียนลง reviews/PR-<pr-number>.json>,
-  review_markdown = <เนื้อหาของไฟล์ reviews/PR-<pr-number>.md ทั้งหมด>,
+  review_json     = $JSON_CONTENT,
+  review_markdown = $MD_CONTENT,
   pr_title        = <PR title จาก Step 1>
 )
 ```
-
-Discord จะได้รับ:
-- บรรทัดที่ 1: `📋 PR #<id>: <title> — <emoji> <DECISION>`
-- บรรทัดที่ 2: `🔴 X crit · 🟠 X high · 🟡 X med · 🟢 X low`
-- summary ภาษาไทย
-- `📎 Full review → PR-<id>.md` พร้อม file attachment
 
 ถ้า tool ตอบ error ให้บันทึกว่า "Discord: SKIPPED" และดำเนินการต่อ
 

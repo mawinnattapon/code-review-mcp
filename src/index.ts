@@ -5,7 +5,7 @@ import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { registerGithubTools } from './tools/github.js';
 import { registerReviewTools } from './tools/review.js';
 import { registerCodeCommitTools } from './tools/codecommit.js';
-import { registerDiscordTools } from './tools/discord.js';
+import { registerDiscordTools, sendToDiscord } from './tools/discord.js';
 import { registerSessionTools, type SessionStore } from './tools/session.js';
 
 const app = express();
@@ -55,6 +55,46 @@ app.post('/messages', async (req, res) => {
   }
 
   await transport.handlePostMessage(req, res, req.body);
+});
+
+// Test Discord endpoint — POST /test/discord
+app.post('/test/discord', async (req, res) => {
+  try {
+    const { review_markdown, bot_token, webhook_url, channel_id } = req.body ?? {};
+
+    const testReview = {
+      prId: '0',
+      provider: 'test',
+      decision: 'APPROVE',
+      summary: 'นี่คือ test message จาก Code Review MCP Server — Discord integration ทำงานถูกต้อง',
+      findings: [
+        { severity: 'MEDIUM', category: 'Test', description: 'ตัวอย่าง MEDIUM finding', location: 'src/test.ts:1' },
+        { severity: 'LOW',    category: 'Test', description: 'ตัวอย่าง LOW finding',    location: 'src/test.ts:2' },
+      ],
+      validation: [
+        { name: 'Type check', status: 'Skipped (not checked out)' },
+        { name: 'Lint',       status: 'Skipped (not checked out)' },
+        { name: 'Tests',      status: 'Skipped (not checked out)' },
+        { name: 'Build',      status: 'Skipped (not checked out)' },
+      ],
+    };
+
+    const markdown = review_markdown ?? `# PR Review: #0 (Test)\n\n**Decision**: APPROVE\n\n## Summary\nTest message from Code Review MCP\n`;
+
+    await sendToDiscord({
+      review: testReview,
+      reviewMarkdown: markdown,
+      prTitle: 'Test Message',
+      botToken: bot_token,
+      channelId: channel_id,
+      webhookUrl: webhook_url,
+    });
+
+    res.json({ ok: true, message: 'ส่ง test message ไปยัง Discord เรียบร้อยแล้ว' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ ok: false, error: message });
+  }
 });
 
 // Health check

@@ -46,77 +46,91 @@ function buildSummaryMessage(review: ReviewJson, prTitle?: string): string {
   return [line1, line2, '', line3, '', line4].join('\n');
 }
 
-async function postViaBot(
-  token: string,
-  channelId: string,
+function buildMultipart(
+  content: string,
+  markdownContent: string,
+  filename: string,
+): { body: string; contentType: string } {
+  const boundary = `----discord${Date.now().toString(16)}`;
+  const CRLF = '\r\n';
+
+  const payloadPart = [
+    `--${boundary}`,
+    'Content-Disposition: form-data; name="payload_json"',
+    'Content-Type: application/json',
+    '',
+    JSON.stringify({ content }),
+  ].join(CRLF);
+
+  const filePart = [
+    `--${boundary}`,
+    `Content-Disposition: form-data; name="files[0]"; filename="${filename}"`,
+    'Content-Type: text/markdown; charset=utf-8',
+    '',
+    markdownContent,
+  ].join(CRLF);
+
+  const closing = `--${boundary}--`;
+
+  const bodyStr = [payloadPart, filePart, closing].join(CRLF) + CRLF;
+
+  return { body: bodyStr, contentType: `multipart/form-data; boundary=${boundary}` };
+}
+
+async function post(
+  url: string,
+  extraHeaders: Record<string, string>,
   content: string,
   markdownContent?: string,
   filename?: string,
 ): Promise<void> {
-  const url = `https://discord.com/api/v10/channels/${channelId}/messages`;
+  let headers: Record<string, string>;
+  let body: string;
 
   if (markdownContent && filename) {
-    // Send with file attachment via multipart/form-data
-    const form = new FormData();
-    form.append('payload_json', JSON.stringify({ content }));
-    form.append(
-      'files[0]',
-      new Blob([markdownContent], { type: 'text/markdown' }),
-      filename,
-    );
-
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { Authorization: `Bot ${token}` },
-      body: form,
-    });
-    if (!res.ok) {
-      const body = await res.text();
-      throw new Error(`Discord bot API failed: ${res.status} ${body}`);
-    }
+    const mp = buildMultipart(content, markdownContent, filename);
+    headers = { ...extraHeaders, 'Content-Type': mp.contentType };
+    body = mp.body;
   } else {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bot ${token}` },
-      body: JSON.stringify({ content }),
-    });
-    if (!res.ok) {
-      const body = await res.text();
-      throw new Error(`Discord bot API failed: ${res.status} ${body}`);
-    }
+    headers = { ...extraHeaders, 'Content-Type': 'application/json' };
+    body = JSON.stringify({ content });
+  }
+
+  const res = await fetch(url, { method: 'POST', headers, body });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Discord API failed: ${res.status} ${text}`);
   }
 }
 
-async function postViaWebhook(
-  webhookUrl: string,
-  content: string,
-  markdownContent?: string,
-  filename?: string,
-): Promise<void> {
-  if (markdownContent && filename) {
-    const form = new FormData();
-    form.append('payload_json', JSON.stringify({ content }));
-    form.append(
-      'files[0]',
-      new Blob([markdownContent], { type: 'text/markdown' }),
-      filename,
-    );
+export async function sendToDiscord(opts: {
+  review: ReviewJson;
+  reviewMarkdown?: string;
+  prTitle?: string;
+  botToken?: string;
+  channelId?: string;
+  webhookUrl?: string;
+}): Promise<void> {
+  const { review, reviewMarkdown, prTitle, botToken, channelId, webhookUrl } = opts;
+  const content = buildSummaryMessage(review, prTitle);
+  const filename = reviewMarkdown ? `PR-${review.prId}.md` : undefined;
 
-    const res = await fetch(webhookUrl, { method: 'POST', body: form });
-    if (!res.ok) {
-      const body = await res.text();
-      throw new Error(`Discord webhook failed: ${res.status} ${body}`);
-    }
+  const resolvedToken = botToken ?? process.env.DISCORD_BOT_TOKEN;
+  const resolvedChannel = channelId ?? process.env.DISCORD_CHANNEL_ID;
+  const resolvedWebhook = webhookUrl ?? process.env.DISCORD_WEBHOOK_URL;
+
+  if (resolvedToken && resolvedChannel) {
+    await post(
+      `https://discord.com/api/v10/channels/${resolvedChannel}/messages`,
+      { Authorization: `Bot ${resolvedToken}` },
+      content, reviewMarkdown, filename,
+    );
+  } else if (resolvedWebhook) {
+    await post(resolvedWebhook, {}, content, reviewMarkdown, filename);
   } else {
-    const res = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content }),
-    });
-    if (!res.ok) {
-      const body = await res.text();
-      throw new Error(`Discord webhook failed: ${res.status} ${body}`);
-    }
+    throw new Error(
+      'Discord destination required — set DISCORD_BOT_TOKEN + DISCORD_CHANNEL_ID, or DISCORD_WEBHOOK_URL in .env',
+    );
   }
 }
 
@@ -154,24 +168,17 @@ export function registerDiscordTools(server: McpServer) {
         throw new Error('Invalid JSON in review_json parameter');
       }
 
-      const content = buildSummaryMessage(review, pr_title);
-      const filename = review_markdown ? `PR-${review.prId}.md` : undefined;
+      await sendToDiscord({
+        review,
+        reviewMarkdown: review_markdown,
+        prTitle: pr_title,
+        botToken: bot_token,
+        channelId: channel_id,
+        webhookUrl: webhook_url,
+      });
 
-      const resolvedToken = bot_token ?? process.env.DISCORD_BOT_TOKEN;
-      const resolvedChannel = channel_id ?? process.env.DISCORD_CHANNEL_ID;
-      const resolvedWebhook = webhook_url ?? process.env.DISCORD_WEBHOOK_URL;
-
-      if (resolvedToken && resolvedChannel) {
-        await postViaBot(resolvedToken, resolvedChannel, content, review_markdown, filename);
-      } else if (resolvedWebhook) {
-        await postViaWebhook(resolvedWebhook, content, review_markdown, filename);
-      } else {
-        throw new Error(
-          'Discord destination required — set DISCORD_BOT_TOKEN + DISCORD_CHANNEL_ID, or DISCORD_WEBHOOK_URL in .env',
-        );
-      }
-
-      const mode = resolvedToken && resolvedChannel ? 'bot token' : 'webhook';
+      const mode =
+        (bot_token ?? process.env.DISCORD_BOT_TOKEN) ? 'bot token' : 'webhook';
       return {
         content: [
           {
