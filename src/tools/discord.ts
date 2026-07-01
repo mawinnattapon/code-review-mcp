@@ -101,30 +101,56 @@ function buildEmbed(review: ReviewJson, prTitle?: string) {
   };
 }
 
+async function postViaWebhook(url: string, payload: object): Promise<void> {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Discord webhook failed: ${res.status} ${body}`);
+  }
+}
+
+async function postViaBot(token: string, channelId: string, payload: object): Promise<void> {
+  const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bot ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Discord bot API failed: ${res.status} ${body}`);
+  }
+}
+
 export function registerDiscordTools(server: McpServer) {
   server.tool(
     'send_to_discord',
-    'Send a PR review result to a Discord channel via webhook. Reads review JSON and posts a formatted embed.',
+    'Send a PR review result to Discord via bot token or webhook. Supports both modes — bot token is preferred when available.',
     {
       review_json: z
         .string()
         .describe('The review result as a JSON string (content of reviews/PR-<id>.json)'),
       pr_title: z.string().optional().describe('PR title for the Discord embed header'),
+      channel_id: z
+        .string()
+        .optional()
+        .describe('Discord channel ID to send the message (bot token mode) — overrides DISCORD_CHANNEL_ID env var'),
+      bot_token: z
+        .string()
+        .optional()
+        .describe('Discord bot token (overrides DISCORD_BOT_TOKEN env var)'),
       webhook_url: z
         .string()
         .optional()
-        .describe(
-          'Discord webhook URL (overrides DISCORD_WEBHOOK_URL env var)',
-        ),
+        .describe('Discord webhook URL — fallback if no bot token (overrides DISCORD_WEBHOOK_URL env var)'),
     },
-    async ({ review_json, pr_title, webhook_url }) => {
-      const url = webhook_url ?? process.env.DISCORD_WEBHOOK_URL;
-      if (!url) {
-        throw new Error(
-          'Discord webhook URL is required — set DISCORD_WEBHOOK_URL in .env or pass webhook_url',
-        );
-      }
-
+    async ({ review_json, pr_title, channel_id, bot_token, webhook_url }) => {
       let review: ReviewJson;
       try {
         review = JSON.parse(review_json);
@@ -132,26 +158,28 @@ export function registerDiscordTools(server: McpServer) {
         throw new Error('Invalid JSON in review_json parameter');
       }
 
-      const payload = {
-        embeds: [buildEmbed(review, pr_title)],
-      };
+      const payload = { embeds: [buildEmbed(review, pr_title)] };
 
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+      const resolvedToken = bot_token ?? process.env.DISCORD_BOT_TOKEN;
+      const resolvedChannel = channel_id ?? process.env.DISCORD_CHANNEL_ID;
+      const resolvedWebhook = webhook_url ?? process.env.DISCORD_WEBHOOK_URL;
 
-      if (!response.ok) {
-        const body = await response.text();
-        throw new Error(`Discord webhook failed: ${response.status} ${body}`);
+      if (resolvedToken && resolvedChannel) {
+        await postViaBot(resolvedToken, resolvedChannel, payload);
+      } else if (resolvedWebhook) {
+        await postViaWebhook(resolvedWebhook, payload);
+      } else {
+        throw new Error(
+          'Discord destination required — set DISCORD_BOT_TOKEN + DISCORD_CHANNEL_ID, or DISCORD_WEBHOOK_URL in .env',
+        );
       }
 
+      const mode = resolvedToken && resolvedChannel ? 'bot token' : 'webhook';
       return {
         content: [
           {
             type: 'text' as const,
-            text: `ส่งผล review PR #${review.prId} ไปยัง Discord เรียบร้อยแล้ว (decision: ${review.decision})`,
+            text: `ส่งผล review PR #${review.prId} ไปยัง Discord เรียบร้อยแล้ว via ${mode} (decision: ${review.decision})`,
           },
         ],
       };
