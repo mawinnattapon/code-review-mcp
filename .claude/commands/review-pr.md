@@ -14,30 +14,30 @@ Review PR $ARGUMENTS
 ## Step 0 — PARSE ARGUMENTS
 
 แยก argument จาก `$ARGUMENTS`:
-- ถ้ามี `--provider codecommit` → provider = `codecommit`, ตัดออกจาก args
-- ถ้าไม่มี flag → provider = `github` (default)
+- ถ้ามี `--provider codecommit` → provider = `codecommit`
+- ถ้ามี `--provider github` → provider = `github`
+- ถ้าไม่มี flag → provider = `codecommit` (default)
+- ถ้ามี `--aws-key <val>` → `$AWS_KEY` = val
+- ถ้ามี `--aws-secret <val>` → `$AWS_SECRET` = val
+- ถ้ามี `--aws-token <val>` → `$AWS_TOKEN` = val
 
-**GitHub:** argument คือ `<owner/repo> <pr-number>`
-- repo = ส่วนแรก (เช่น `madee-house/backend-api`)
-- pr_number = ส่วนที่สอง (เช่น `262`)
+**GitHub:** `<owner/repo> <pr-number>` เช่น `madee-house/backend-api 262`
 
-**CodeCommit:** argument คือ `<repositoryName> <pullRequestId>`
-- repositoryName = ส่วนแรก (เช่น `my-backend-repo`)
-- pullRequestId = ส่วนที่สอง (เช่น `"5"`)
+**CodeCommit:** `<repositoryName> <pullRequestId>` เช่น `true-ecommerce-store-web 4961`
 
 ---
 
 ## Step 0.5 — AWS CREDENTIALS (CodeCommit เท่านั้น)
 
-ถ้า provider = **codecommit**: ขอ AWS credentials จากผู้ใช้ก่อนดำเนินการต่อ
+ถ้า provider = **codecommit**:
+- ถ้า `$AWS_KEY` และ `$AWS_SECRET` มีค่าจาก Step 0 แล้ว → ใช้เลย ไม่ต้องถาม
+- ถ้ายังไม่มี → ขอจากผู้ใช้:
+  > กรุณาแนบ AWS credentials (จาก AWS Access Portal หรือ Identity Center):
+  > - `AWS_ACCESS_KEY_ID` (ASIA... หรือ AKIA...)
+  > - `AWS_SECRET_ACCESS_KEY`
+  > - `AWS_SESSION_TOKEN` (ถ้ามี)
 
-พิมพ์ข้อความนี้ให้ผู้ใช้:
-> กรุณาแนบ AWS credentials สำหรับ session นี้ (จาก AWS Access Portal หรือ Identity Center):
-> - `AWS_ACCESS_KEY_ID` (ASIA... หรือ AKIA...)
-> - `AWS_SECRET_ACCESS_KEY`
-> - `AWS_SESSION_TOKEN` (ถ้ามี — สำหรับ temporary credentials)
-
-เก็บค่าที่ได้ไว้เป็น `$AWS_KEY`, `$AWS_SECRET`, `$AWS_TOKEN` สำหรับใช้ใน Step 1
+เก็บไว้เป็น `$AWS_KEY`, `$AWS_SECRET`, `$AWS_TOKEN`
 
 ---
 
