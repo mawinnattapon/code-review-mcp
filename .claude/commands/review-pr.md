@@ -201,23 +201,18 @@ Rules:
 
 ## Step 7 — DISCORD NOTIFICATION
 
-ทำตามลำดับนี้:
+**ห้ามข้ามขั้นตอนนี้** ทำตามลำดับทุกข้อ:
 
-**7a.** อ่านไฟล์ `reviews/PR-<pr-number>.md` ด้วย Read tool เก็บเนื้อหาไว้เป็น `$MD_CONTENT`
+**7a.** ใช้ Read tool อ่านไฟล์ `reviews/PR-<pr-number>.md` — เก็บ **เนื้อหาทั้งหมด** ไว้
 
-**7b.** อ่านไฟล์ `reviews/PR-<pr-number>.json` ด้วย Read tool เก็บเนื้อหาไว้เป็น `$JSON_CONTENT`
+**7b.** ใช้ Read tool อ่านไฟล์ `reviews/PR-<pr-number>.json` — เก็บ **เนื้อหาทั้งหมด** ไว้
 
-**7c.** เรียก `send_to_discord` ผ่าน mawin-agent:
+**7c.** เรียก `send_to_discord` ผ่าน mawin-agent โดยใส่ทั้งสอง parameter นี้ **ทุกครั้ง ห้ามละ**:
+- `review_json` = เนื้อหาของ .json ที่อ่านมาใน 7b (string เต็ม ไม่ตัด)
+- `review_markdown` = เนื้อหาของ .md ที่อ่านมาใน 7a (string เต็ม ไม่ตัด) ← **ถ้าไม่ส่ง parameter นี้ จะไม่มีไฟล์แนบใน Discord**
+- `pr_title` = PR title จาก Step 1
 
-```
-send_to_discord(
-  review_json     = $JSON_CONTENT,
-  review_markdown = $MD_CONTENT,
-  pr_title        = <PR title จาก Step 1>
-)
-```
-
-ถ้า tool ตอบ error ให้บันทึกว่า "Discord: SKIPPED" และดำเนินการต่อ
+ถ้า tool ตอบ error ให้บันทึกว่า "Discord: SKIPPED (<error>)" และดำเนินการต่อ
 
 ---
 
