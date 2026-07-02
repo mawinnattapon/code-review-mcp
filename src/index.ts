@@ -1,7 +1,10 @@
 import 'dotenv/config';
 import express from 'express';
+import { randomUUID } from 'crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import { registerGithubTools } from './tools/github.js';
 import { registerReviewTools } from './tools/review.js';
 import { registerCodeCommitTools } from './tools/codecommit.js';
@@ -15,6 +18,9 @@ const PORT = parseInt(process.env.PORT ?? '3000', 10);
 
 // Active SSE sessions: sessionId -> transport
 const sessions = new Map<string, SSEServerTransport>();
+
+// Active Streamable HTTP sessions: sessionId -> { transport, server }
+const httpSessions = new Map<string, { transport: StreamableHTTPServerTransport; server: McpServer }>();
 
 function createMcpServer(): McpServer {
   const server = new McpServer({
@@ -55,6 +61,67 @@ app.post('/messages', async (req, res) => {
   }
 
   await transport.handlePostMessage(req, res, req.body);
+});
+
+// Streamable HTTP endpoint — for Google Antigravity CLI and HTTP-first MCP clients
+// POST /mcp handles initialize (creates session) and all subsequent requests
+app.post('/mcp', async (req, res) => {
+  const sessionId = req.headers['mcp-session-id'] as string | undefined;
+  const existing = sessionId ? httpSessions.get(sessionId) : undefined;
+
+  if (existing) {
+    // Reuse existing session
+    await existing.transport.handleRequest(req, res, req.body);
+    return;
+  }
+
+  // Only initialize requests may create a new session
+  if (!isInitializeRequest(req.body)) {
+    res.status(400).json({ error: 'No active session — send initialize request first' });
+    return;
+  }
+
+  const transport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: () => randomUUID(),
+    onsessioninitialized: (id) => {
+      httpSessions.set(id, { transport, server });
+    },
+  });
+
+  const server = createMcpServer();
+
+  transport.onclose = () => {
+    if (transport.sessionId) httpSessions.delete(transport.sessionId);
+  };
+
+  await server.connect(transport);
+  await transport.handleRequest(req, res, req.body);
+});
+
+// GET /mcp — server-to-client SSE stream within a Streamable HTTP session
+app.get('/mcp', async (req, res) => {
+  const sessionId = req.headers['mcp-session-id'] as string | undefined;
+  const existing = sessionId ? httpSessions.get(sessionId) : undefined;
+
+  if (!existing) {
+    res.status(404).json({ error: 'Session not found' });
+    return;
+  }
+
+  await existing.transport.handleRequest(req, res);
+});
+
+// DELETE /mcp — tear down a Streamable HTTP session
+app.delete('/mcp', async (req, res) => {
+  const sessionId = req.headers['mcp-session-id'] as string | undefined;
+  const existing = sessionId ? httpSessions.get(sessionId) : undefined;
+
+  if (!existing) {
+    res.status(404).json({ error: 'Session not found' });
+    return;
+  }
+
+  await existing.transport.handleRequest(req, res);
 });
 
 // Test Discord endpoint — POST /test/discord
@@ -102,13 +169,14 @@ app.get('/health', (_req, res) => {
   res.json({
     status: 'ok',
     service: 'code-review-mcp',
-    sessions: sessions.size,
+    sessions: { sse: sessions.size, http: httpSessions.size },
     timestamp: new Date().toISOString(),
   });
 });
 
 app.listen(PORT, () => {
   console.log(`Code Review MCP Server started`);
-  console.log(`  SSE endpoint : http://localhost:${PORT}/sse`);
-  console.log(`  Health check : http://localhost:${PORT}/health`);
+  console.log(`  SSE endpoint         : http://localhost:${PORT}/sse`);
+  console.log(`  Streamable HTTP      : http://localhost:${PORT}/mcp`);
+  console.log(`  Health check         : http://localhost:${PORT}/health`);
 });
