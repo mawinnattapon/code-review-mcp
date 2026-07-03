@@ -58,7 +58,7 @@ Finding format (ใช้ทุก finding):
 
 ## MCP Connector
 
-- Connector name: **mawin-agent**
+- Connector name: **agent-reviwe-code**
 - GitHub tools: `list_pull_requests`, `get_pull_request`, `get_diff`, `get_file_content`
 - CodeCommit tools: `cc_list_pull_requests`, `cc_get_pull_request`, `cc_get_diff`, `cc_get_file`
 - Review tools: `review_security`, `review_quality`, `review_license`, `review_code`

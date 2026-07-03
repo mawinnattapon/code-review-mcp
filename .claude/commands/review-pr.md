@@ -7,7 +7,7 @@ Review PR $ARGUMENTS
 
 **กฎภาษา (บังคับ):** ตอบและเขียนทุกอย่างเป็น**ภาษาไทย**เท่านั้น ยกเว้น code snippets, file paths, identifiers, และ keywords ต่อไปนี้ที่ให้เป็น English: CRITICAL, HIGH, MEDIUM, LOW, APPROVE, REQUEST CHANGES, BLOCK, Added, Modified, Deleted, Skipped
 
-ใช้ MCP connector (mawin-agent) ดึงข้อมูลแล้ว review ตาม rubric ด้านล่าง
+ใช้ MCP connector (agent-reviwe-code) ดึงข้อมูลแล้ว review ตาม rubric ด้านล่าง
 
 ---
 
@@ -43,12 +43,12 @@ Review PR $ARGUMENTS
 
 ## Step 1 — FETCH
 
-ถ้า provider = **github**: เรียก tools ผ่าน mawin-agent connector:
+ถ้า provider = **github**: เรียก tools ผ่าน agent-reviwe-code connector:
 1. `get_pull_request` (owner, repo, pr_number) → title, description, branch, labels, stats, files
 2. `get_diff` (owner, repo, pr_number) → unified diff
 3. `review_code` (diff) → automated static analysis
 
-ถ้า provider = **codecommit**: เรียก tools ผ่าน mawin-agent connector พร้อมส่ง credentials ทุก call:
+ถ้า provider = **codecommit**: เรียก tools ผ่าน agent-reviwe-code connector พร้อมส่ง credentials ทุก call:
 1. `cc_get_pull_request` (pullRequestId, aws_access_key_id=$AWS_KEY, aws_secret_access_key=$AWS_SECRET, aws_session_token=$AWS_TOKEN)
 2. `cc_get_diff` (repositoryName, pullRequestId, aws_access_key_id=$AWS_KEY, aws_secret_access_key=$AWS_SECRET, aws_session_token=$AWS_TOKEN)
 3. `review_code` (diff) → automated static analysis (ไม่ต้องส่ง credentials)
@@ -207,7 +207,7 @@ Rules:
 
 **7b.** ใช้ Read tool อ่านไฟล์ `reviews/PR-<pr-number>.json` — เก็บ **เนื้อหาทั้งหมด** ไว้
 
-**7c.** เรียก `send_to_discord` ผ่าน mawin-agent โดยใส่ทั้งสอง parameter นี้ **ทุกครั้ง ห้ามละ**:
+**7c.** เรียก `send_to_discord` ผ่าน agent-reviwe-code โดยใส่ทั้งสอง parameter นี้ **ทุกครั้ง ห้ามละ**:
 - `review_json` = เนื้อหาของ .json ที่อ่านมาใน 7b (string เต็ม ไม่ตัด)
 - `review_markdown` = เนื้อหาของ .md ที่อ่านมาใน 7a (string เต็ม ไม่ตัด) ← **ถ้าไม่ส่ง parameter นี้ จะไม่มีไฟล์แนบใน Discord**
 - `pr_title` = PR title จาก Step 1

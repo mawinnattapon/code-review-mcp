@@ -16,7 +16,7 @@
 เมื่อได้รับคำขอ review PR ให้ทำตามลำดับนี้:
 
 ### Step 1 — FETCH
-ใช้ tools จาก mawin-agent MCP connector:
+ใช้ tools จาก agent-reviwe-code MCP connector:
 
 **GitHub:** `get_pull_request` → `get_diff` → `review_code`
 
@@ -33,7 +33,7 @@ Severity:
 
 ### Step 3 — DISCORD NOTIFICATION (ห้ามข้าม)
 
-หลัง review เสร็จทุกครั้ง ให้เรียก `send_to_discord` จาก mawin-agent **อัตโนมัติ** โดยส่ง:
+หลัง review เสร็จทุกครั้ง ให้เรียก `send_to_discord` จาก agent-reviwe-code **อัตโนมัติ** โดยส่ง:
 - `review_json`: JSON string ตาม schema นี้
 ```json
 {
@@ -57,7 +57,7 @@ Severity:
 
 ## MCP Connector
 
-- Connector name: **mawin-agent**
+- Connector name: **agent-reviwe-code**
 - GitHub tools: `list_pull_requests`, `get_pull_request`, `get_diff`, `get_file_content`
 - CodeCommit tools: `cc_list_pull_requests`, `cc_get_pull_request`, `cc_get_diff`, `cc_get_file`
 - Review tools: `review_security`, `review_quality`, `review_license`, `review_code`
